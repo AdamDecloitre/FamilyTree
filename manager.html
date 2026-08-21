@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tree Manager - FamilyTree</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header>
+        <div class="header-container">
+            <div class="header-brand">
+                <div class="brand-mark" aria-hidden="true">FT</div>
+                <div>
+                    <h1>FamilyTree</h1>
+                    <p class="brand-kicker">PRIVATE GENEALOGY WORKSPACE</p>
+                </div>
+                <p class="header-subtitle">Manage Your Trees</p>
+            </div>
+            <div class="header-actions">
+                <span class="header-status">Local files only</span>
+                <button class="header-action header-action-muted" onclick="window.location.href='index.html'"><span aria-hidden="true">⌂</span> Home</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <section>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                <h2 style="margin: 0;">My Family Trees</h2>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-primary" onclick="createNewTree()">➕ New Tree</button>
+                    <button class="btn btn-secondary" onclick="importTree()">📥 Import</button>
+                </div>
+            </div>
+
+            <div class="trees-grid" id="treesGrid">
+                <p class="empty-state">No trees yet. Create your first family tree!</p>
+            </div>
+        </section>
+
+        <section style="margin-top: 60px; padding: 30px; background: var(--bg-white); border-radius: 12px; border: 1px solid var(--border-color);">
+            <h3>Storage Information</h3>
+            <div id="storageInfo" style="margin-top: 15px;">
+                <p>Les arbres ne sont pas conservés dans le navigateur. Utilisez les fichiers <code>.tree</code> pour sauvegarder et restaurer vos données.</p>
+            </div>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        <div class="footer-inner">
+            <div class="footer-logo"><span class="footer-mark">AD</span><span>Adam Decloitre</span></div>
+            <p>Copyright &copy; 2026 Adam Decloitre. Family history stays on your computer.</p>
+        </div>
+    </footer>
+
+    <script src="js/data.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/export.js"></script>
+    <script>
+        const ui = {
+            showNotification: (msg, type = 'info') => {
+                const notif = document.createElement('div');
+                notif.className = `notification notification-${type}`;
+                notif.textContent = msg;
+                const container = document.getElementById('notificationsContainer') || (() => {
+                    const div = document.createElement('div');
+                    div.id = 'notificationsContainer';
+                    div.className = 'notifications-container';
+                    document.body.appendChild(div);
+                    return div;
+                })();
+                container.appendChild(notif);
+                setTimeout(() => {
+                    notif.classList.add('fade-out');
+                    setTimeout(() => notif.remove(), 300);
+                }, 3000);
+            }
+        };
+
+        function loadTrees() {
+            const grid = document.getElementById('treesGrid');
+            grid.innerHTML = '<p class="empty-state">Aucun arbre n’est conservé ici. Créez un arbre ou importez un fichier .tree pour commencer.</p>';
+        }
+
+        function openTree(treeId) {
+            window.location.href = 'app.html?mode=import';
+        }
+
+        function createNewTree() {
+            window.location.href = 'app.html?mode=create';
+        }
+
+        function importTree() {
+            window.location.href = 'app.html?mode=import';
+        }
+
+        function exportTree(treeId) {
+            const tree = storage.loadTree(treeId);
+            if (!tree) {
+                ui.showNotification('Tree not found', 'error');
+                return;
+            }
+
+            if (FileManager.exportTree(tree)) {
+                ui.showNotification('Tree exported successfully!', 'success');
+            } else {
+                ui.showNotification('Error exporting tree', 'error');
+            }
+        }
+
+        function deleteTree(treeId) {
+            if (!confirm('Are you sure you want to delete this tree? This action cannot be undone.')) return;
+
+            if (storage.deleteTree(treeId)) {
+                ui.showNotification('Tree deleted successfully', 'success');
+                loadTrees();
+                updateStorageInfo();
+            } else {
+                ui.showNotification('Error deleting tree', 'error');
+            }
+        }
+
+        function updateStorageInfo() {
+            const storageDiv = document.getElementById('storageInfo');
+            storageDiv.innerHTML = '<p>Les fichiers .tree sont enregistrés par téléchargement sur votre ordinateur. Aucun arbre n’est conservé par le site.</p>';
+        }
+
+        // Load trees on page load
+        window.addEventListener('load', () => {
+            loadTrees();
+            updateStorageInfo();
+        });
+    </script>
+</body>
+</html>

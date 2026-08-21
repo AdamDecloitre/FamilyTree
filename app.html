@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FamilyTree - View & Edit</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header>
+        <div class="header-container">
+            <div class="header-brand">
+                <div class="brand-mark" aria-hidden="true">FT</div>
+                <div>
+                    <h1>FamilyTree</h1>
+                    <p class="brand-kicker">PRIVATE GENEALOGY WORKSPACE</p>
+                </div>
+                <p class="header-subtitle" id="treeName">Loading...</p>
+                <span id="unsavedBadge" style="display: none; font-size: 0.8rem; background: #ef4444; color: white; padding: 4px 10px; border-radius: 4px; margin-top: 5px; font-weight: 600;">⚠ Unsaved changes</span>
+            </div>
+            <div class="header-actions">
+                <span class="header-status">In-memory session</span>
+                <button class="header-action" onclick="window.location.href='manager.html'"><span aria-hidden="true">▦</span> My Trees</button>
+                <button class="header-action header-action-muted" onclick="window.location.href='index.html'"><span aria-hidden="true">⌂</span> Home</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="controls">
+            <button class="btn btn-primary" onclick="openAddPersonModal()">➕ Add Person</button>
+            
+            <div class="import-export-container">
+                <button class="btn">⇅ Import/Export</button>
+                <div class="import-export-menu" id="importExportMenu">
+                    <button class="menu-item" onclick="importTree()">📥 Import Tree</button>
+                    <button class="menu-item" onclick="exportTree()">📤 Export Tree</button>
+                    <button class="menu-item" onclick="exportToCSV()">📊 Export as CSV</button>
+                </div>
+            </div>
+
+            <input type="text" id="searchInput" placeholder="Search by name or profession..." onkeyup="filterEmployees()">
+            <button class="btn-filter" onclick="toggleAdvancedSearch()">⚙ Filters</button>
+            
+            <div class="tree-controls">
+                <button class="button-tree" onclick="treeRenderer.expandAll()" title="Expand all">▼ Expand All</button>
+                <button class="button-tree" onclick="treeRenderer.collapseAll()" title="Collapse all">▶ Collapse All</button>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+            <span id="treeStats" style="flex: 1; padding: 10px 15px; background: var(--bg-white); border-radius: 8px; border: 1px solid var(--border-color);"></span>
+        </div>
+
+        <div id="tree-container" class="family-tree">
+            <!-- Tree will be rendered here -->
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="footer-inner">
+            <div class="footer-logo"><span class="footer-mark">AD</span><span>Adam Decloitre</span></div>
+            <p>Copyright &copy; 2026 Adam Decloitre. Family history stays on your computer.</p>
+        </div>
+    </footer>
+
+    <script src="js/data.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/export.js"></script>
+    <script src="js/tree.js"></script>
+    <script src="js/ui.js"></script>
+    <script>
+        let currentTree = null;
+        let treeRenderer = null;
+        let currentPerson = null;
+        let hasUnsavedChanges = false;
+
+        // Update unsaved badge display
+        function updateUnsavedBadge() {
+            const badge = document.getElementById('unsavedBadge');
+            if (hasUnsavedChanges && badge) {
+                badge.style.display = 'inline-block';
+            } else if (badge) {
+                badge.style.display = 'none';
+            }
+        }
+
+        // Warn before leaving with unsaved changes
+        window.addEventListener('beforeunload', (e) => {
+            if (hasUnsavedChanges) {
+                e.preventDefault();
+                e.returnValue = 'You have unsaved changes. Remember to export your tree before leaving!';
+                return e.returnValue;
+            }
+        });
+
+        // Initialize on page load
+        window.addEventListener('load', () => {
+            initializeApp();
+        });
+
+        function initializeApp() {
+            const mode = new URLSearchParams(window.location.search).get('mode');
+            if (mode === 'create') {
+                let treeName = 'My Family Tree';
+                try {
+                    treeName = prompt('Enter a name for your new family tree:') || treeName;
+                } catch (error) {
+                    // Some embedded browsers do not implement prompt().
+                }
+                const tree = new FamilyTree(treeName);
+                const rootPerson = new Person(`person_${Date.now()}`, 'First', 'Person');
+                tree.addPerson(rootPerson);
+                tree.rootPersonId = rootPerson.id;
+                activateTree(tree);
+                return;
+            }
+
+            if (mode === 'import') {
+                prepareImportWorkspace();
+                return;
+            }
+
+            alert('Choisissez Créer ou Importer depuis la page d’accueil.');
+            window.location.href = 'index.html';
+        }
+
+        function activateTree(tree) {
+            currentTree = tree;
+            setWorkspaceControls(true);
+            ui.currentTree = currentTree;
+            treeRenderer = new TreeRenderer('tree-container');
+            ui.treeRenderer = treeRenderer;
+
+            document.getElementById('treeName').textContent = currentTree.name;
+            renderTree();
+            setupImportExportMenu();
+            updateStats();
+
+            // Listen for person selection
+            document.addEventListener('personSelected', (e) => {
+                ui.viewPerson(e.detail.personId);
+            });
+        }
+
+        function openImportPicker() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.tree,application/json';
+            input.addEventListener('change', async (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+                try {
+                    activateTree(await FileManager.importTree(file));
+                } catch (error) {
+                    alert('Impossible de charger cet arbre : ' + error.message);
+                    window.location.href = 'index.html';
+                }
+            });
+            input.click();
+        }
+
+        function prepareImportWorkspace() {
+            treeRenderer = new TreeRenderer('tree-container');
+            ui.treeRenderer = treeRenderer;
+            setWorkspaceControls(false);
+            document.getElementById('treeName').textContent = 'Import a .tree file';
+            document.getElementById('tree-container').innerHTML = `
+                <div class="empty-state">
+                    <p>Select a .tree file from your computer to begin.</p>
+                    <button class="btn btn-primary" type="button" onclick="openImportPicker()">Choose .tree file</button>
+                </div>`;
+            setupImportExportMenu();
+        }
+
+        function setWorkspaceControls(enabled) {
+            document.querySelectorAll('.controls > button:not(.import-export-container button), #searchInput, .tree-controls button')
+                .forEach(control => { control.disabled = !enabled; });
+        }
+
+        function renderTree() {
+            treeRenderer.render(currentTree);
+            updateStats();
+        }
+
+        function updateStats() {
+            const stats = document.getElementById('treeStats');
+            const peopleCount = Object.keys(currentTree.people).length;
+            const generations = currentTree.calculateGenerations();
+            stats.innerHTML = `📊 <strong>${peopleCount}</strong> people | <strong>${generations}</strong> generations`;
+        }
+
+        function filterEmployees() {
+            const query = document.getElementById('searchInput').value;
+            if (!query) {
+                renderTree();
+                return;
+            }
+
+            const results = treeRenderer.search(query);
+            if (results.length === 0) {
+                document.getElementById('tree-container').innerHTML = '<p class="empty-state">No results found</p>';
+                return;
+            }
+
+            treeRenderer.highlightSearchResults(results);
+        }
+
+        function toggleAdvancedSearch() {
+            // Advanced search implementation
+            ui.showNotification('Advanced search coming soon!', 'info');
+        }
+
+        function openAddPersonModal() {
+            const content = `
+                <div>
+                    <div class="form-field">
+                        <label>First Name <span class="required">*</span></label>
+                        <input type="text" id="firstName" required>
+                    </div>
+                    <div class="form-field">
+                        <label>Last Name <span class="required">*</span></label>
+                        <input type="text" id="lastName" required>
+                    </div>
+                    <div class="form-field">
+                        <label>Gender</label>
+                        <select id="gender">
+                            <option value="other">Other</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label>Birth Date</label>
+                        <input type="date" id="birthDate">
+                    </div>
+                    <div class="form-field">
+                        <label>Birth Place</label>
+                        <input type="text" id="birthPlace">
+                    </div>
+                    <div class="form-field">
+                        <label>Death Date</label>
+                        <input type="date" id="deathDate">
+                    </div>
+                    <div class="form-field">
+                        <label>Death Place</label>
+                        <input type="text" id="deathPlace">
+                    </div>
+                    <div class="form-field">
+                        <label>Profession</label>
+                        <input type="text" id="profession">
+                    </div>
+                    <div class="form-field">
+                        <label>Biography</label>
+                        <textarea id="biography" rows="4"></textarea>
+                    </div>
+                    <div class="form-field">
+                        <label>Photo</label>
+                        <input type="file" id="photoInput" accept="image/*">
+                    </div>
+                    <div class="form-field">
+                        <label>Document</label>
+                        <input type="file" id="documentInput">
+                    </div>
+                </div>
+            `;
+
+            ui.createModal('addPerson', 'Add New Person', content, [
+                {
+                    text: 'Cancel',
+                    className: 'btn-secondary',
+                    onClick: () => ui.closeModal('addPerson')
+                },
+                {
+                    text: 'Add Person',
+                    className: 'btn-primary',
+                    onClick: () => addNewPerson()
+                }
+            ]);
+
+            ui.openModal('addPerson');
+        }
+
+        async function addNewPerson() {
+            const firstName = document.getElementById('firstName').value;
+            const lastName = document.getElementById('lastName').value;
+
+            if (!firstName || !lastName) {
+                ui.showNotification('Please fill in required fields', 'warning');
+                return;
+            }
+
+            const person = new Person(
+                `person_${Date.now()}`,
+                firstName,
+                lastName,
+                document.getElementById('birthDate').value || null,
+                document.getElementById('birthPlace').value || null
+            );
+
+            person.gender = document.getElementById('gender').value;
+            person.deathDate = document.getElementById('deathDate').value || null;
+            person.deathPlace = document.getElementById('deathPlace').value || null;
+            person.profession = document.getElementById('profession').value || null;
+            person.biography = document.getElementById('biography').value || null;
+
+            // Handle photo
+            const photoInput = document.getElementById('photoInput');
+            if (photoInput.files.length > 0) {
+                const photoBase64 = await FileManager.fileToBase64(photoInput.files[0]);
+                person.addPhoto(photoInput.files[0].name, photoBase64);
+            }
+
+            const documentInput = document.getElementById('documentInput');
+            if (documentInput.files.length > 0) {
+                const file = documentInput.files[0];
+                const extension = file.name.split('.').pop().toLowerCase();
+                const documentBase64 = await FileManager.fileToBase64(file);
+                person.addDocument(file.name, extension, documentBase64);
+            }
+
+            currentTree.addPerson(person);
+            storage.saveTree(currentTree);
+            hasUnsavedChanges = true;
+            updateUnsavedBadge();
+            ui.closeModal('addPerson');
+            renderTree();
+            ui.showNotification(`${person.getFullName()} added successfully!`, 'success');
+        }
+
+        function setupImportExportMenu() {
+            const btn = document.querySelector('.import-export-container button');
+            const menu = document.getElementById('importExportMenu');
+
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+            });
+
+            document.addEventListener('click', () => {
+                menu.style.display = 'none';
+            });
+        }
+
+        function importTree() {
+            openImportPicker();
+        }
+
+        function exportTree() {
+            if (FileManager.exportTree(currentTree)) {
+                hasUnsavedChanges = false;
+                updateUnsavedBadge();
+                ui.showNotification('✅ Tree exported successfully! Your changes are now saved to your computer.', 'success');
+            } else {
+                ui.showNotification('Error exporting tree', 'error');
+            }
+        }
+
+        function exportToCSV() {
+            if (FileManager.exportToCSV(currentTree)) {
+                ui.showNotification('Exported to CSV successfully!', 'success');
+            } else {
+                ui.showNotification('Error exporting to CSV', 'error');
+            }
+        }
+    </script>
+</body>
+</html>

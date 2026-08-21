@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FamilyTree - Build Your Family History</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header>
+        <div class="header-container">
+            <div class="header-brand">
+                <div class="brand-mark" aria-hidden="true">FT</div>
+                <div>
+                    <h1>FamilyTree</h1>
+                    <p class="brand-kicker">PRIVATE GENEALOGY WORKSPACE</p>
+                </div>
+                <p class="header-subtitle">Discover Your Family History</p>
+            </div>
+            <div class="header-actions">
+                <span class="header-status">Local files only</span>
+                <button class="header-action" onclick="goToManager()"><span aria-hidden="true">▦</span> My Trees</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="hero">
+            <h1>Welcome to FamilyTree</h1>
+            <p>Create beautiful family trees, preserve your family history, and connect generations together.</p>
+            
+            <div class="hero-actions">
+                <button class="btn btn-primary" onclick="createNewTree()">
+                    ➕ Create New Tree
+                </button>
+                <button class="btn btn-secondary" onclick="openTree()">
+                    📂 Open Existing Tree
+                </button>
+                <button class="btn btn-secondary" onclick="goToManager()">
+                    📋 Manage Trees
+                </button>
+            </div>
+        </section>
+
+        <section class="features">
+            <div class="feature-card">
+                <div class="feature-icon">👨‍👩‍👧‍👦</div>
+                <h3>Build Relationships</h3>
+                <p>Connect family members and visualize the complete family structure across generations.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">📸</div>
+                <h3>Store Photos & Documents</h3>
+                <p>Add photos and important documents like birth certificates or family records for each person.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">📅</div>
+                <h3>Complete History</h3>
+                <p>Record birth, death, marriage dates, professions, and detailed biographical information.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">💾</div>
+                <h3>Local Storage</h3>
+                <p>Your data is saved locally on your computer. Import and export .tree files anytime.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">🔍</div>
+                <h3>Search & Filter</h3>
+                <p>Quickly find family members by name, profession, or other details.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">⚡</div>
+                <h3>Optimized Performance</h3>
+                <p>Handle large family trees with thousands of members smoothly and efficiently.</p>
+            </div>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        <div class="footer-inner">
+            <div class="footer-logo"><span class="footer-mark">AD</span><span>Adam Decloitre</span></div>
+            <p>Copyright &copy; 2026 Adam Decloitre. Family history stays on your computer.</p>
+        </div>
+    </footer>
+
+    <script src="js/data.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/export.js"></script>
+    <script>
+        function createNewTree() {
+            window.location.href = 'app.html?mode=create';
+        }
+
+        function openTree() {
+            window.location.href = 'app.html?mode=import';
+        }
+
+        function goToManager() {
+            window.location.href = 'manager.html';
+        }
+    </script>
+</body>
+</html>

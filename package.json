@@ -1,0 +1,22 @@
+{
+  "name": "familytree",
+  "version": "1.0.0",
+  "description": "Modern genealogy and family tree builder for GitHub Pages",
+  "main": "index.html",
+  "scripts": {
+    "serve": "npx http-server -p 8000 -o",
+    "preview": "npx http-server -p 8000"
+  },
+  "keywords": [
+    "genealogy",
+    "family-tree",
+    "ancestry",
+    "history"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/FamilyTree"
+  }
+}
